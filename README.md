@@ -1,3 +1,3 @@
 # truth-table-gen
 
-Generate truth tables from boolean expressions.
+Generate a truth table from a boolean expression.
