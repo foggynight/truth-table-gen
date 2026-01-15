@@ -2,18 +2,19 @@
 # Copyright (C) 2026 Robert Coffey
 # Released under the MIT license.
 
+from sys import argv
+
 def error(msg):
     raise Exception(f'error: {msg}')
 
 # parser -----------------------------------------------------------------------
 #
-# TODO: | Add prime for invert. e.g. X' = not X
 # Grammar:
 #   EXPR -> TERM ("+" EXPR)?
 #   TERM -> PROD ("*" TERM)?
 #         | PROD (TERM)?
-#   PROD -> VAR
-#         | "(" EXPR ")"
+#   PROD -> VAR INV?
+#         | "(" EXPR ")" INV?
 #   VAR  -> [a-zA-Z]
 
 toks = None
@@ -40,13 +41,19 @@ def parse_var():
     return var
 
 def parse_prod():
+    expr = None
     if next() == '(':
         consume()
         expr = parse_expr()
         expect(')')
-        return expr
     else:
-        return parse_var()
+        expr = parse_var()
+
+    if next() == "'":
+        consume()
+        expr = ("'", expr)
+
+    return expr
 
 def parse_term():
     left = parse_prod()
@@ -88,3 +95,6 @@ def main(string: str):
         print(expr)
     except Exception as e:
         print(str(e))
+
+if __name__ == '__main__':
+    main(argv[1])
