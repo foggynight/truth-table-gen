@@ -8,10 +8,6 @@ from sys import argv
 def error(msg):
     raise Exception(f'error: {msg}')
 
-def list_print(it):
-    for e in it:
-        print(e)
-
 # expr (AST) -------------------------------------------------------------------
 # Abstract syntax tree is represented by either a character or a tuple.
 #   - Single character represents a variable.
@@ -28,17 +24,17 @@ class Op(Enum):
 
 # Get a list of the variables in an expression.
 def expr_vars(expr):
-    vars = []
+    vars = set()
     def walk(e):
         if type(e) == str:
-            vars.append(e)
+            vars.add(e)
         elif type(expr) != tuple:
             error('invalid expr, not string or tuple')
         else:
             for x in e[1:]:
                 walk(x)
     walk(expr)
-    return vars
+    return sorted(list(vars))
 
 # Generate all combinations of bindings given a list of variables.
 def var_bind_combos(vars):
@@ -67,15 +63,16 @@ def expr_eval(expr, binds: dict[chr, bool]):
 
     match expr[0]:
         case Op.NOT:
-            return not eval_expr(expr[1], binds)
+            return not expr_eval(expr[1], binds)
         case Op.AND:
-            return eval_expr(expr[1], binds) and eval_expr(expr[2], binds)
+            return expr_eval(expr[1], binds) and expr_eval(expr[2], binds)
         case Op.OR:
-            return eval_expr(expr[1], binds) or eval_expr(expr[2], binds)
+            return expr_eval(expr[1], binds) or expr_eval(expr[2], binds)
         case _:
             error(f'unknown op: {expr[0]}')
 
 # parser -----------------------------------------------------------------------
+# Recursive descent expression parser.
 # Expression Grammar:
 #   EXPR -> TERM ("+" EXPR)?
 #   TERM -> PROD ("*" TERM)?
@@ -144,6 +141,7 @@ def parse_expr():
         return (Op.OR, left, right)
     else: return left
 
+# Parse a single expression contained in `string`.
 def parse(string: str):
     global toks, toks_i
     toks = list(filter(
@@ -156,35 +154,39 @@ def parse(string: str):
 
 # printer ----------------------------------------------------------------------
 
-def print_tt_header(vars):
-    pass
+def print_tt_header(vars, output_var=' '):
+    print('|', end='')
+    for v in vars:
+        print(f' {v}', end='')
+    print(f' | {output_var} |')
+    cross_bar = '-' * (1 + 2*len(vars) + 6)
+    print(cross_bar)
 
-def print_tt_row(binds):
-    pass
-
-def print_truth_table(vars, binds_list):
-    print_tt_header(vars)
-    for binds in binds_list:
-        print_tt_row(binds)
+def print_tt_row(input_vals: [bool], output_val: bool):
+    print('|', end='')
+    for v in input_vals:
+        print(f' {v}', end='')
+    print(f' | {output_val} |')
 
 # main -------------------------------------------------------------------------
+
+def gen_truth_table(expr):
+    vars = expr_vars(expr)
+    bind_combos = var_bind_combos(vars)
+    print_tt_header(vars)
+    for binds in bind_combos:
+        vals = [1 if binds[var] else 0 for var in vars]
+        result = 1 if expr_eval(expr, binds) else 0
+        print_tt_row(vals, result)
 
 def main(string: str):
     expr = None
     try:
         expr = parse(string)
-        print(expr)
     except Exception as e:
         print(str(e))
         return
-
-    binds = {
-        'a': 0,
-        'b': 1,
-        'c': 1,
-        'd': 0,
-    }
-    print(expr_eval(expr, binds))
+    gen_truth_table(expr)
 
 if __name__ == '__main__':
     main(argv[1])
