@@ -2,14 +2,44 @@
 # Copyright (C) 2026 Robert Coffey
 # Released under the MIT license.
 
+from enum import Enum, auto
 from sys import argv
 
 def error(msg):
     raise Exception(f'error: {msg}')
 
+# AST --------------------------------------------------------------------------
+# Abstract syntax tree is represented by either a character or a tuple.
+#   - Single character represents a variable.
+#   - Tuple of 2 elements represents a unary expression: (Op, AST)
+#   - Tuple of 3 elements represents a binary expression: (Op, L_AST, R_AST)
+
+class Op(Enum):
+    NOT = auto()
+    AND = auto()
+    OR = auto()
+
+    def __repr__(self):
+        return self.name
+
+def eval_ast(ast, binds: dict[chr, bool]):
+    if type(ast) == str:
+        return binds[ast]
+    elif type(ast) != tuple:
+        error('invalid ast, not string or tuple')
+
+    match ast[0]:
+        case Op.NOT:
+            return not eval_ast(ast[1], binds)
+        case Op.AND:
+            return eval_ast(ast[1], binds) and eval_ast(ast[2], binds)
+        case Op.OR:
+            return eval_ast(ast[1], binds) or eval_ast(ast[2], binds)
+        case _:
+            error(f'unknown op: {ast[0]}')
+
 # parser -----------------------------------------------------------------------
-#
-# Grammar:
+# Expression Grammar:
 #   EXPR -> TERM ("+" EXPR)?
 #   TERM -> PROD ("*" TERM)?
 #         | PROD (TERM)?
@@ -51,7 +81,7 @@ def parse_prod():
 
     if next() == "'":
         consume()
-        expr = ("'", expr)
+        expr = (Op.NOT, expr)
 
     return expr
 
@@ -67,14 +97,14 @@ def parse_term():
         right = parse_term()
 
     if right is None: return left
-    else:             return ('*', left, right)
+    else:             return (Op.AND, left, right)
 
 def parse_expr():
     left = parse_term()
     if next() == '+':
         consume()
         right = parse_expr()
-        return ('+', left, right)
+        return (Op.OR, left, right)
     else: return left
 
 def parse(string: str):
@@ -90,11 +120,21 @@ def parse(string: str):
 # main -------------------------------------------------------------------------
 
 def main(string: str):
+    expr = None
     try:
         expr = parse(string)
         print(expr)
     except Exception as e:
         print(str(e))
+        return
+
+    binds = {
+        'a': 0,
+        'b': 1,
+        'c': 1,
+        'd': 0,
+    }
+    print(eval_expr(expr, binds))
 
 if __name__ == '__main__':
     main(argv[1])
